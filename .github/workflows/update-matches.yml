@@ -1,0 +1,49 @@
+name: Update football matches
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+jobs:
+  update-matches:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+
+      - name: Recuperer les matchs
+        env:
+          API_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: |
+          TODAY=$(date -u +"%Y-%m-%d")
+          TOMORROW=$(date -u -d "tomorrow" +"%Y-%m-%d")
+
+          mkdir -p data
+
+          curl -s \
+            --request GET \
+            --url "https://v3.football.api-sports.io/fixtures?date=$TODAY" \
+            --header "x-apisports-key: $API_KEY" \
+            > data/today.json
+
+          curl -s \
+            --request GET \
+            --url "https://v3.football.api-sports.io/fixtures?date=$TOMORROW" \
+            --header "x-apisports-key: $API_KEY" \
+            > data/tomorrow.json
+
+      - name: Enregistrer les donnees
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/today.json data/tomorrow.json
+
+          git diff --cached --quiet || git commit -m "Update football matches"
+
+          git push
