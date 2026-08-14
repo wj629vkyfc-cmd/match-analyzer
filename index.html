@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Analyzer</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b0f14;
+      color: #ffffff;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+    }
+
+    h1 {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #9ca3af;
+      margin-bottom: 25px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #29313d;
+      border-radius: 10px;
+      background: #121821;
+      color: white;
+      font-size: 15px;
+    }
+
+    .tab.active {
+      background: #1d2733;
+      border-color: #4b5563;
+    }
+
+    .match {
+      background: #121821;
+      border: 1px solid #29313d;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 15px;
+    }
+
+    .league {
+      color: #9ca3af;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .teams {
+      font-size: 19px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .time {
+      color: #9ca3af;
+      margin-bottom: 15px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+    }
+
+    .analyze-btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    .analysis {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .confidence {
+      background: #13261b;
+      border: 1px solid #285c3a;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 15px;
+    }
+
+    .confidence-number {
+      font-size: 34px;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+
+    .market {
+      background: #121821;
+      border: 1px solid #29313d;
+      border-radius: 14px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+
+    .market-title {
+      color: #9ca3af;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .market-value {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .reason {
+      background: #121821;
+      border-radius: 14px;
+      padding: 15px;
+      margin-top: 15px;
+      color: #d1d5db;
+      line-height: 1.5;
+    }
+
+    .empty {
+      color: #9ca3af;
+      text-align: center;
+      padding: 30px 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>⚽ Match Analyzer</h1>
+    <p class="subtitle">
+      Analyse statistique des matchs
+    </p>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showDay('today', this)">
+        Aujourd'hui
+      </button>
+
+      <button class="tab" onclick="showDay('tomorrow', this)">
+        Demain
+      </button>
+    </div>
+
+    <div id="matches"></div>
+
+  </div>
+
+  <script>
+
+    /*
+      DONNÉES TEMPORAIRES
+
+      Pour le moment nous utilisons des matchs fictifs.
+      À l'étape suivante, nous remplacerons ces données
+      par les vrais matchs récupérés depuis une API sportive.
+    */
+
+    const matches = {
+      today: [
+        {
+          league: "Exemple — Premier League",
+          home: "Équipe A",
+          away: "Équipe B",
+          time: "20:00"
+        },
+        {
+          league: "Exemple — Liga",
+          home: "Équipe C",
+          away: "Équipe D",
+          time: "21:00"
+        }
+      ],
+
+      tomorrow: [
+        {
+          league: "Exemple — Ligue 1",
+          home: "Équipe E",
+          away: "Équipe F",
+          time: "18:00"
+        }
+      ]
+    };
+
+
+    function showDay(day, button) {
+
+      document.querySelectorAll(".tab").forEach(tab => {
+        tab.classList.remove("active");
+      });
+
+      button.classList.add("active");
+
+      displayMatches(day);
+    }
+
+
+    function displayMatches(day) {
+
+      const container = document.getElementById("matches");
+
+      container.innerHTML = "";
+
+      if (!matches[day] || matches[day].length === 0) {
+
+        container.innerHTML = `
+          <div class="empty">
+            Aucun match disponible.
+          </div>
+        `;
+
+        return;
+      }
+
+
+      matches[day].forEach((match, index) => {
+
+        const div = document.createElement("div");
+
+        div.className = "match";
+
+        div.innerHTML = `
+          <div class="league">
+            ${match.league}
+          </div>
+
+          <div class="teams">
+            ${match.home} vs ${match.away}
+          </div>
+
+          <div class="time">
+            🕐 ${match.time}
+          </div>
+
+          <button
+            class="analyze-btn"
+            onclick="analyzeMatch(${index}, '${day}')">
+            🔍 Analyser le match
+          </button>
+
+          <div
+            class="analysis"
+            id="analysis-${day}-${index}">
+          </div>
+        `;
+
+        container.appendChild(div);
+      });
+    }
+
+
+    function analyzeMatch(index, day) {
+
+      const match = matches[day][index];
+
+      /*
+        PREMIÈRE VERSION DU MOTEUR
+
+        Ces valeurs sont uniquement des démonstrations.
+        Elles seront calculées automatiquement lorsque
+        nous connecterons les vraies statistiques.
+      */
+
+      const homeWin = 52;
+      const draw = 26;
+      const awayWin = 22;
+
+      const doubleChance = homeWin + draw;
+
+      const over15 = 78;
+      const over25 = 57;
+      const under35 = 72;
+
+      const btts = 55;
+
+      const confidence = 74;
+
+
+      const analysis =
+        document.getElementById(`analysis-${day}-${index}`);
+
+      analysis.style.display = "block";
+
+      analysis.innerHTML = `
+
+        <div class="confidence">
+
+          <div>
+            CONFIANCE DU MODÈLE
+          </div>
+
+          <div class="confidence-number">
+            ${confidence}/100
+          </div>
+
+        </div>
+
+
+        <div class="market">
+
+          <div class="market-title">
+            1X2
+          </div>
+
+          <div class="market-value">
+            ${match.home} : ${homeWin}%
+          </div>
+
+          <div>
+            Nul : ${draw}% |
+            ${match.away} : ${awayWin}%
+          </div>
+
+        </div>
+
+
+        <div class="market">
+
+          <div class="market-title">
+            DOUBLE CHANCE
+          </div>
+
+          <div class="market-value">
+            1X : ${doubleChance}%
+          </div>
+
+        </div>
+
+
+        <div class="market">
+
+          <div class="market-title">
+            OVER / UNDER
+          </div>
+
+          <div>
+            Over 1.5 : <strong>${over15}%</strong>
+          </div>
+
+          <div>
+            Over 2.5 : <strong>${over25}%</strong>
+          </div>
+
+          <div>
+            Under 3.5 : <strong>${under35}%</strong>
+          </div>
+
+        </div>
+
+
+        <div class="market">
+
+          <div class="market-title">
+            BTTS
+          </div>
+
+          <div class="market-value">
+            Oui : ${btts}%
+          </div>
+
+        </div>
+
+
+        <div class="reason">
+
+          <strong>📊 Analyse du modèle</strong>
+
+          <br><br>
+
+          Le système compare actuellement les différents
+          marchés statistiques.
+
+          <br><br>
+
+          <strong>Choix statistiquement intéressant :</strong>
+
+          Double chance 1X
+
+          <br><br>
+
+          ⚠️ Les pourcentages affichés ici sont provisoires.
+          Ils seront remplacés par des calculs basés sur les
+          statistiques réelles des équipes.
+
+        </div>
+      `;
+    }
+
+
+    // Afficher les matchs du jour au chargement
+    displayMatches("today");
+
+  </script>
+
+</body>
+</html>
