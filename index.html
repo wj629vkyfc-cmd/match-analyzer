@@ -159,15 +159,7 @@
       Analyse statistique des matchs
     </p>
 
-    <div class="tabs">
-      <button class="tab active" onclick="showDay('today', this)">
-        Aujourd'hui
-      </button>
-
-      <button class="tab" onclick="showDay('tomorrow', this)">
-        Demain
-      </button>
-    </div>
+    <div class="tabs" id="dateTabs"></div>
 
     <div id="matches"></div>
 
@@ -181,12 +173,9 @@
 };
 
 
-/*
-  CHARGER LES MATCHS DEPUIS GITHUB
-*/
-
-async function loadMatches() {
-
+/
+  CHARGER LES MATCHS DEPUIS let matches = {};
+let selectedDate = new Date();
   const container = document.getElementById("matches");
 
   container.innerHTML = `
@@ -266,7 +255,7 @@ async function loadMatches() {
 
 /*
   CONVERTIR LES DONNÉES API-FOOTBALL
-*/
+*
 
 function convertMatches(apiMatches) {
 
