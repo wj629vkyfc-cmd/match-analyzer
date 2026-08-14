@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Match Analyzer</title>
 
   <style>
@@ -48,6 +49,7 @@
       background: #121821;
       color: white;
       font-size: 15px;
+      cursor: pointer;
     }
 
     .tab.active {
@@ -93,6 +95,10 @@
       color: white;
       font-weight: bold;
       font-size: 15px;
+    }
+
+    .analyze-btn:hover {
+      background: #1d4ed8;
     }
 
     .analysis {
@@ -155,6 +161,7 @@
   <div class="container">
 
     <h1>⚽ Match Analyzer</h1>
+
     <p class="subtitle">
       Analyse statistique des matchs
     </p>
@@ -165,416 +172,713 @@
 
   </div>
 
+
   <script>
-    (async () => {
+
+    /*
+      VARIABLES PRINCIPALES
+    */
 
     let matches = {
-  today: [],
-  tomorrow: []
-};
-
-
-/*
-  /*
-    CHARGER LES MATCHS DEPUIS LES FICHIERS JSON
-*/
-    
-  */
-let selectedDate = new Date();
-  const container = document.getElementById("matches");
-
-  container.innerHTML = `
-    <div class="empty">
-      ⏳ Chargement des matchs...
-    </div>
-  `;
-
-  try {
-
-    const [todayResponse, tomorrowResponse] = await Promise.all([
-      fetch("data/today.json"),
-      fetch("data/tomorrow.json")
-    ]);
-
-
-    if (!todayResponse.ok) {
-      throw new Error("Impossible de charger today.json");
-    }
-
-    if (!tomorrowResponse.ok) {
-      throw new Error("Impossible de charger tomorrow.json");
-    }
-
-
-    const todayData = await todayResponse.json();
-    const tomorrowData = await tomorrowResponse.json();
-
-
-    /*
-      Vérification de la réponse API-Football
-    */
-
-    if (todayData.errors && Object.keys(todayData.errors).length > 0) {
-      throw new Error("Erreur dans today.json");
-    }
-
-    if (tomorrowData.errors && Object.keys(tomorrowData.errors).length > 0) {
-      throw new Error("Erreur dans tomorrow.json");
-    }
-
-
-    /*
-      Transformation des données API-Football
-      vers le format utilisé par notre site.
-    */
-
-    matches.today = convertMatches(todayData.response || []);
-
-    matches.today = convertMatches(todayData.response);
-
-
-
-    console.log("Matchs aujourd'hui :", matches.today.length);
-    console.log("Matchs demain :", matches.tomorrow.length);
-
-
-    /*
-      Afficher automatiquement les matchs du jour
-    */
-
-    displayMatches("today");
-
-  } catch (error) {
-
-    console.error("Erreur :", error);
-
-    container.innerHTML = `
-      <div class="empty">
-        ❌ Impossible de charger les matchs.
-        <br><br>
-        Vérifie la connexion aux fichiers JSON.
-      </div>
-    `;
-  }
-}
-
-
-/*
-  CONVERTIR LES DONNÉES API-FOOTBALL
-*
-
-function convertMatches(apiMatches) {
-
-  return apiMatches.map(match => {
-
-    const fixture = match.fixture;
-    const league = match.league;
-    const teams = match.teams;
-
-
-    const date = new Date(fixture.date);
-
-
-    /*
-      Heure affichée selon le fuseau horaire
-      du téléphone / navigateur.
-    */
-
-    const time = date.toLocaleTimeString("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-
-
-    return {
-
-      id: fixture.id,
-
-      league: league.name,
-
-      leagueLogo: league.logo,
-
-      home: teams.home.name,
-
-      away: teams.away.name,
-
-      homeLogo: teams.home.logo,
-
-      awayLogo: teams.away.logo,
-
-      time: time,
-
-      status: fixture.status.short,
-
-      date: fixture.date
+      today: [],
+      tomorrow: []
     };
 
-  });
 
-}
+    /*
+      JOUR SÉLECTIONNÉ
+    */
 
-
-/*
-  CHANGER DE JOUR
-*/
-
-function showDay(day, button) {
-
-  document.querySelectorAll(".tab").forEach(tab => {
-    tab.classList.remove("active");
-  });
-
-  button.classList.add("active");
-
-  displayMatches(day);
-}
+    let selectedDate = "today";
 
 
-/*
-  AFFICHER LES MATCHS
-*/
+    /*
+      CHARGER LES MATCHS DEPUIS LES FICHIERS JSON
+    */
 
-function displayMatches(day) {
+    async function loadMatches() {
 
-  const container = document.getElementById("matches");
+      const container = document.getElementById("matches");
 
-  container.innerHTML = "";
-
-
-  if (!matches[day] || matches[day].length === 0) {
-
-    container.innerHTML = `
-      <div class="empty">
-        Aucun match disponible.
-      </div>
-    `;
-
-    return;
-  }
+      container.innerHTML = `
+        <div class="empty">
+          ⏳ Chargement des matchs...
+        </div>
+      `;
 
 
-  matches[day].forEach((match, index) => {
+      try {
 
-    const div = document.createElement("div");
+        /*
+          Charger aujourd'hui et demain
+        */
 
-    div.className = "match";
+        const [todayResponse, tomorrowResponse] = await Promise.all([
+
+          fetch("data/today.json"),
+
+          fetch("data/tomorrow.json")
+
+        ]);
 
 
-    div.innerHTML = `
+        /*
+          Vérifier today.json
+        */
 
-      <div class="league">
+        if (!todayResponse.ok) {
 
-        ${match.league}
+          throw new Error(
+            "Impossible de charger today.json"
+          );
 
-      </div>
+        }
 
 
-      <div class="teams">
+        /*
+          Vérifier tomorrow.json
+        */
 
-        <div>
-          ${match.home}
+        if (!tomorrowResponse.ok) {
+
+          throw new Error(
+            "Impossible de charger tomorrow.json"
+          );
+
+        }
+
+
+        /*
+          Convertir les réponses JSON
+        */
+
+        const todayData =
+          await todayResponse.json();
+
+        const tomorrowData =
+          await tomorrowResponse.json();
+
+
+        /*
+          Vérification des erreurs API-Football
+        */
+
+        if (
+          todayData.errors &&
+          Object.keys(todayData.errors).length > 0
+        ) {
+
+          throw new Error(
+            "Erreur dans today.json"
+          );
+
+        }
+
+
+        if (
+          tomorrowData.errors &&
+          Object.keys(tomorrowData.errors).length > 0
+        ) {
+
+          throw new Error(
+            "Erreur dans tomorrow.json"
+          );
+
+        }
+
+
+        /*
+          CONVERSION DES MATCHS
+        */
+
+        matches.today =
+          convertMatches(
+            todayData.response || []
+          );
+
+
+        matches.tomorrow =
+          convertMatches(
+            tomorrowData.response || []
+          );
+
+
+        /*
+          Affichage dans la console
+        */
+
+        console.log(
+          "Matchs aujourd'hui :",
+          matches.today.length
+        );
+
+        console.log(
+          "Matchs demain :",
+          matches.tomorrow.length
+        );
+
+
+        /*
+          Créer les onglets
+        */
+
+        createDateTabs();
+
+
+        /*
+          Afficher les matchs d'aujourd'hui
+        */
+
+        displayMatches("today");
+
+
+      } catch (error) {
+
+        console.error(
+          "Erreur lors du chargement :",
+          error
+        );
+
+
+        container.innerHTML = `
+          <div class="empty">
+
+            ❌ Impossible de charger les matchs.
+
+            <br><br>
+
+            Vérifie que les fichiers suivants
+            existent bien :
+
+            <br><br>
+
+            <strong>data/today.json</strong>
+
+            <br>
+
+            <strong>data/tomorrow.json</strong>
+
+          </div>
+        `;
+
+      }
+
+    }
+
+
+    /*
+      CONVERTIR LES DONNÉES API-FOOTBALL
+      VERS LE FORMAT UTILISÉ PAR LE SITE
+    */
+
+    function convertMatches(apiMatches) {
+
+      if (!Array.isArray(apiMatches)) {
+
+        return [];
+
+      }
+
+
+      return apiMatches.map(match => {
+
+        /*
+          Sécurité si certaines données sont absentes
+        */
+
+        const fixture = match.fixture || {};
+
+        const league = match.league || {};
+
+        const teams = match.teams || {};
+
+        const homeTeam = teams.home || {};
+
+        const awayTeam = teams.away || {};
+
+
+        /*
+          Date du match
+        */
+
+        const date = fixture.date
+          ? new Date(fixture.date)
+          : null;
+
+
+        /*
+          Heure affichée selon le fuseau horaire
+          du téléphone / navigateur
+        */
+
+        const time = date
+          ? date.toLocaleTimeString(
+              "fr-FR",
+              {
+                hour: "2-digit",
+                minute: "2-digit"
+              }
+            )
+          : "--:--";
+
+
+        /*
+          Retourner le match dans notre format
+        */
+
+        return {
+
+          id: fixture.id || Date.now(),
+
+          league:
+            league.name || "Championnat inconnu",
+
+          leagueLogo:
+            league.logo || "",
+
+          home:
+            homeTeam.name || "Équipe inconnue",
+
+          away:
+            awayTeam.name || "Équipe inconnue",
+
+          homeLogo:
+            homeTeam.logo || "",
+
+          awayLogo:
+            awayTeam.logo || "",
+
+          time: time,
+
+          status:
+            fixture.status
+              ? fixture.status.short
+              : "",
+
+          date:
+            fixture.date || ""
+
+        };
+
+      });
+
+    }
+
+
+    /*
+      CRÉER LES ONGLETS
+    */
+
+    function createDateTabs() {
+
+      const tabs =
+        document.getElementById("dateTabs");
+
+
+      tabs.innerHTML = "";
+
+
+      /*
+        Onglet Aujourd'hui
+      */
+
+      const todayButton =
+        document.createElement("button");
+
+      todayButton.className =
+        "tab active";
+
+      todayButton.textContent =
+        "Aujourd'hui";
+
+      todayButton.onclick = function () {
+
+        showDay("today", todayButton);
+
+      };
+
+
+      /*
+        Onglet Demain
+      */
+
+      const tomorrowButton =
+        document.createElement("button");
+
+      tomorrowButton.className =
+        "tab";
+
+      tomorrowButton.textContent =
+        "Demain";
+
+      tomorrowButton.onclick = function () {
+
+        showDay("tomorrow", tomorrowButton);
+
+      };
+
+
+      /*
+        Ajouter les boutons à la page
+      */
+
+      tabs.appendChild(todayButton);
+
+      tabs.appendChild(tomorrowButton);
+
+    }
+
+
+    /*
+      CHANGER DE JOUR
+    */
+
+    function showDay(day, button) {
+
+      /*
+        Retirer active de tous les onglets
+      */
+
+      document
+        .querySelectorAll(".tab")
+        .forEach(tab => {
+
+          tab.classList.remove("active");
+
+        });
+
+
+      /*
+        Activer le bouton sélectionné
+      */
+
+      button.classList.add("active");
+
+
+      /*
+        Mémoriser le jour sélectionné
+      */
+
+      selectedDate = day;
+
+
+      /*
+        Afficher les matchs
+      */
+
+      displayMatches(day);
+
+    }
+
+
+    /*
+      AFFICHER LES MATCHS
+    */
+
+    function displayMatches(day) {
+
+      const container =
+        document.getElementById("matches");
+
+
+      /*
+        Nettoyer le contenu
+      */
+
+      container.innerHTML = "";
+
+
+      /*
+        Vérifier si les données existent
+      */
+
+      if (
+        !matches[day] ||
+        matches[day].length === 0
+      ) {
+
+        container.innerHTML = `
+          <div class="empty">
+            Aucun match disponible.
+          </div>
+        `;
+
+        return;
+
+      }
+
+
+      /*
+        Afficher chaque match
+      */
+
+      matches[day].forEach((match, index) => {
+
+        const div =
+          document.createElement("div");
+
+
+        div.className = "match";
+
+
+        div.innerHTML = `
+
+          <div class="league">
+            ${match.league}
+          </div>
+
+
+          <div class="teams">
+
+            <div>
+              ${match.home}
+            </div>
+
+            <div
+              style="
+                font-size:14px;
+                color:#9ca3af;
+                margin:5px 0;
+              "
+            >
+              VS
+            </div>
+
+            <div>
+              ${match.away}
+            </div>
+
+          </div>
+
+
+          <div class="time">
+
+            🕐 ${match.time}
+
+          </div>
+
+
+          <button
+            class="analyze-btn"
+            onclick="analyzeMatch(${index}, '${day}')"
+          >
+
+            🔍 Analyser le match
+
+          </button>
+
+
+          <div
+            class="analysis"
+            id="analysis-${day}-${index}"
+          >
+          </div>
+
+        `;
+
+
+        container.appendChild(div);
+
+      });
+
+    }
+
+
+    /*
+      ANALYSE DU MATCH
+    */
+
+    function analyzeMatch(index, day) {
+
+      /*
+        Récupérer le match
+      */
+
+      const match =
+        matches[day][index];
+
+
+      /*
+        PREMIÈRE VERSION DU MOTEUR
+
+        Les valeurs sont encore provisoires.
+        Elles seront remplacées par les vrais
+        calculs statistiques dans l'étape suivante.
+      */
+
+      const homeWin = 52;
+
+      const draw = 26;
+
+      const awayWin = 22;
+
+
+      const doubleChance =
+        homeWin + draw;
+
+
+      const over15 = 78;
+
+      const over25 = 57;
+
+      const under35 = 72;
+
+
+      const btts = 55;
+
+
+      const confidence = 74;
+
+
+      /*
+        Récupérer le bloc d'analyse
+      */
+
+      const analysis =
+        document.getElementById(
+          `analysis-${day}-${index}`
+        );
+
+
+      /*
+        Afficher le bloc
+      */
+
+      analysis.style.display = "block";
+
+
+      /*
+        Générer l'analyse
+      */
+
+      analysis.innerHTML = `
+
+        <div class="confidence">
+
+          <div>
+            CONFIANCE DU MODÈLE
+          </div>
+
+          <div class="confidence-number">
+            ${confidence}/100
+          </div>
+
         </div>
 
-        <div style="font-size:14px; color:#9ca3af; margin:5px 0;">
-          VS
+
+        <div class="market">
+
+          <div class="market-title">
+            1X2
+          </div>
+
+          <div class="market-value">
+            ${match.home} : ${homeWin}%
+          </div>
+
+          <div>
+            Nul : ${draw}% |
+            ${match.away} : ${awayWin}%
+          </div>
+
         </div>
 
-        <div>
-          ${match.away}
+
+        <div class="market">
+
+          <div class="market-title">
+            DOUBLE CHANCE
+          </div>
+
+          <div class="market-value">
+            1X : ${doubleChance}%
+          </div>
+
         </div>
 
-      </div>
 
+        <div class="market">
 
-      <div class="time">
+          <div class="market-title">
+            OVER / UNDER
+          </div>
 
-        🕐 ${match.time}
+          <div>
 
-      </div>
+            Over 1.5 :
+            <strong>${over15}%</strong>
 
+          </div>
 
-      <button
-        class="analyze-btn"
-        onclick="analyzeMatch(${index}, '${day}')">
+          <div>
 
-        🔍 Analyser le match
+            Over 2.5 :
+            <strong>${over25}%</strong>
 
-      </button>
+          </div>
 
+          <div>
 
-      <div
-        class="analysis"
-        id="analysis-${day}-${index}">
-      </div>
+            Under 3.5 :
+            <strong>${under35}%</strong>
 
-    `;
+          </div>
 
+        </div>
 
-    container.appendChild(div);
 
-  });
+        <div class="market">
 
-}
+          <div class="market-title">
+            BTTS
+          </div>
 
+          <div class="market-value">
+            Oui : ${btts}%
+          </div>
 
-/*
-  ANALYSE DU MATCH
-*/
+        </div>
 
-function analyzeMatch(index, day) {
 
-  const match = matches[day][index];
+        <div class="reason">
 
+          <strong>
+            📊 Analyse du modèle
+          </strong>
 
-  /*
-    PREMIÈRE VERSION DU MOTEUR
+          <br><br>
 
-    Les valeurs sont encore provisoires.
-    L'étape suivante permettra de remplacer
-    ces valeurs par de vrais calculs statistiques.
-  */
+          Le système utilise maintenant les vrais
+          matchs récupérés automatiquement depuis
+          API-Football.
 
-  const homeWin = 52;
-  const draw = 26;
-  const awayWin = 22;
+          <br><br>
 
-  const doubleChance = homeWin + draw;
+          <strong>
+            Match :
+          </strong>
 
-  const over15 = 78;
-  const over25 = 57;
-  const under35 = 72;
+          ${match.home} vs ${match.away}
 
-  const btts = 55;
+          <br><br>
 
-  const confidence = 74;
+          ⚠️ Les pourcentages affichés sont encore
+          provisoires. Ils seront remplacés par les
+          calculs statistiques réels dans l'étape
+          suivante.
 
+        </div>
 
-  const analysis =
-    document.getElementById(`analysis-${day}-${index}`);
+      `;
 
+    }
 
-  analysis.style.display = "block";
 
+    /*
+      DÉMARRAGE DU SITE
+    */
 
-  analysis.innerHTML = `
-
-    <div class="confidence">
-
-      <div>
-        CONFIANCE DU MODÈLE
-      </div>
-
-      <div class="confidence-number">
-        ${confidence}/100
-      </div>
-
-    </div>
-
-
-    <div class="market">
-
-      <div class="market-title">
-        1X2
-      </div>
-
-      <div class="market-value">
-        ${match.home} : ${homeWin}%
-      </div>
-
-      <div>
-        Nul : ${draw}% |
-        ${match.away} : ${awayWin}%
-      </div>
-
-    </div>
-
-
-    <div class="market">
-
-      <div class="market-title">
-        DOUBLE CHANCE
-      </div>
-
-      <div class="market-value">
-        1X : ${doubleChance}%
-      </div>
-
-    </div>
-
-
-    <div class="market">
-
-      <div class="market-title">
-        OVER / UNDER
-      </div>
-
-      <div>
-        Over 1.5 :
-        <strong>${over15}%</strong>
-      </div>
-
-      <div>
-        Over 2.5 :
-        <strong>${over25}%</strong>
-      </div>
-
-      <div>
-        Under 3.5 :
-        <strong>${under35}%</strong>
-      </div>
-
-    </div>
-
-
-    <div class="market">
-
-      <div class="market-title">
-        BTTS
-      </div>
-
-      <div class="market-value">
-        Oui : ${btts}%
-      </div>
-
-    </div>
-
-
-    <div class="reason">
-
-      <strong>📊 Analyse du modèle</strong>
-
-      <br><br>
-
-      Le système utilise maintenant les vrais
-      matchs récupérés automatiquement depuis
-      API-Football.
-
-      <br><br>
-
-      <strong>Match :</strong>
-
-      ${match.home} vs ${match.away}
-
-      <br><br>
-
-      ⚠️ Les pourcentages affichés sont encore
-      provisoires. Ils seront remplacés par les
-      calculs statistiques réels dans l'étape
-      suivante.
-
-    </div>
-
-  `;
-}
-
-
-/*
-  DÉMARRAGE DU SITE
-*/
-
-loadMatches();
-
-      })();
+    loadMatches();
 
   </script>
 
