@@ -30,58 +30,11 @@ jobs:
 
           export TZ="Africa/Douala"
 
-          TODAY=$(date +"%Y-%m-%d")
-          END_DATE=$(date -d "+6 days" +"%Y-%m-%d")
-
-          echo "Date de debut : $TODAY"
-          echo "Date de fin : $END_DATE"
-
           mkdir -p data
 
-
-          echo "Recuperation des matchs API-Football..."
-
-
-          curl --fail --silent --show-error \
-            --request GET \
-            --url "https://v3.football.api-sports.io/fixtures?from=${TODAY}&to=${END_DATE}&timezone=Africa%2FDouala" \
-            --header "x-apisports-key: ${API_KEY}" \
-            --header "Accept: application/json" \
-            > data/all-matches.json
-
-
-          echo "Verification de la reponse API..."
-
-
-          if ! jq empty data/all-matches.json; then
-
-            echo "ERREUR : la reponse API n'est pas un JSON valide."
-
-            cat data/all-matches.json
-
-            exit 1
-
-          fi
-
-
-          API_ERRORS=$(jq '(.errors // {}) | length' data/all-matches.json)
-
-
-          if [ "$API_ERRORS" -gt 0 ]; then
-
-            echo "ERREUR API-Football :"
-
-            jq '.errors' data/all-matches.json
-
-            exit 1
-
-          fi
-
-
-          echo "Reponse API valide."
-
-
-          echo "Creation des fichiers quotidiens..."
+          echo "====================================="
+          echo "RECUPERATION DES MATCHS"
+          echo "====================================="
 
 
           for i in 0 1 2 3 4 5 6
@@ -89,56 +42,84 @@ jobs:
 
             DATE=$(date -d "+${i} days" +"%Y-%m-%d")
 
-            echo "Creation de data/${DATE}.json"
+            echo ""
+            echo "-------------------------------------"
+            echo "Date : ${DATE}"
+            echo "-------------------------------------"
 
 
-            jq \
-              --arg DATE "$DATE" \
-              '{
-                get: .get,
-                parameters: .parameters,
-                errors: .errors,
-                results: (
-                  .response
-                  | map(
-                      select(
-                        (.fixture.date // "")[0:10] == $DATE
-                      )
-                    )
-                )
-              }' \
-              data/all-matches.json \
+            curl --fail --silent --show-error \
+              --request GET \
+              --url "https://v3.football.api-sports.io/fixtures?date=${DATE}&timezone=Africa%2FDouala" \
+              --header "x-apisports-key: ${API_KEY}" \
+              --header "Accept: application/json" \
               > "data/${DATE}.json"
+
+
+            echo "Verification du JSON..."
+
+
+            if ! jq empty "data/${DATE}.json"; then
+
+              echo "ERREUR : JSON invalide pour ${DATE}"
+
+              cat "data/${DATE}.json"
+
+              exit 1
+
+            fi
+
+
+            API_ERRORS=$(jq '(.errors // {}) | length' "data/${DATE}.json")
+
+
+            if [ "$API_ERRORS" -gt 0 ]; then
+
+              echo "ERREUR API-Football pour ${DATE} :"
+
+              jq '.errors' "data/${DATE}.json"
+
+              exit 1
+
+            fi
+
+
+            MATCH_COUNT=$(jq '.response | length' "data/${DATE}.json")
+
+
+            echo "Matchs recuperes : ${MATCH_COUNT}"
+
 
           done
 
 
-          echo "Creation de today.json..."
+          TODAY=$(date +"%Y-%m-%d")
 
+          TOMORROW=$(date -d "+1 day" +"%Y-%m-%d")
+
+
+          echo ""
+          echo "Creation de today.json..."
 
           cp \
             "data/${TODAY}.json" \
             "data/today.json"
 
 
-          TOMORROW=$(date -d "+1 day" +"%Y-%m-%d")
-
-
           echo "Creation de tomorrow.json..."
-
 
           cp \
             "data/${TOMORROW}.json" \
             "data/tomorrow.json"
 
 
-          echo "Nombre total de matchs :"
+          echo ""
+          echo "====================================="
+          echo "RECUPERATION TERMINEE"
+          echo "====================================="
 
 
-          jq '.response | length' data/all-matches.json
-
-
-          echo "Fichiers disponibles :"
+          echo ""
 
           ls -lh data/
 
@@ -156,7 +137,7 @@ jobs:
 
           if git diff --cached --quiet; then
 
-            echo "Aucune nouvelle donnee a enregistrer."
+            echo "Aucune modification."
 
           else
 
