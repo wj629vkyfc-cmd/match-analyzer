@@ -225,7 +225,8 @@ let selectedDate = new Date();
 
     matches.today = convertMatches(todayData.response || []);
 
-    matches.tomorrow = convertMatches(tomorrowData.response || []);
+    matches.today = convertMatches(todayData.response);
+
 
 
     console.log("Matchs aujourd'hui :", matches.today.length);
