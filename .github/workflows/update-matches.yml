@@ -2,48 +2,166 @@ name: Update football matches
 
 on:
   workflow_dispatch:
+
   schedule:
     - cron: "*/30 * * * *"
 
 jobs:
   update-matches:
+
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
 
     steps:
+
       - name: Recuperer le depot
         uses: actions/checkout@v4
 
-      - name: Recuperer les matchs
+
+      - name: Recuperer les matchs des 7 prochains jours
         env:
           API_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+
         run: |
-          TODAY=$(date -u +"%Y-%m-%d")
-          TOMORROW=$(date -u -d "tomorrow" +"%Y-%m-%d")
+
+          set -e
+
+          export TZ="Africa/Douala"
+
+          TODAY=$(date +"%Y-%m-%d")
+          END_DATE=$(date -d "+6 days" +"%Y-%m-%d")
+
+          echo "Date de debut : $TODAY"
+          echo "Date de fin : $END_DATE"
 
           mkdir -p data
 
-          curl -s \
-            --request GET \
-            --url "https://v3.football.api-sports.io/fixtures?date=$TODAY" \
-            --header "x-apisports-key: $API_KEY" \
-            > data/today.json
 
-          curl -s \
+          echo "Recuperation des matchs API-Football..."
+
+
+          curl --fail --silent --show-error \
             --request GET \
-            --url "https://v3.football.api-sports.io/fixtures?date=$TOMORROW" \
-            --header "x-apisports-key: $API_KEY" \
-            > data/tomorrow.json
+            --url "https://v3.football.api-sports.io/fixtures?from=${TODAY}&to=${END_DATE}&timezone=Africa%2FDouala" \
+            --header "x-apisports-key: ${API_KEY}" \
+            --header "Accept: application/json" \
+            > data/all-matches.json
+
+
+          echo "Verification de la reponse API..."
+
+
+          if ! jq empty data/all-matches.json; then
+
+            echo "ERREUR : la reponse API n'est pas un JSON valide."
+
+            cat data/all-matches.json
+
+            exit 1
+
+          fi
+
+
+          API_ERRORS=$(jq '(.errors // {}) | length' data/all-matches.json)
+
+
+          if [ "$API_ERRORS" -gt 0 ]; then
+
+            echo "ERREUR API-Football :"
+
+            jq '.errors' data/all-matches.json
+
+            exit 1
+
+          fi
+
+
+          echo "Reponse API valide."
+
+
+          echo "Creation des fichiers quotidiens..."
+
+
+          for i in 0 1 2 3 4 5 6
+          do
+
+            DATE=$(date -d "+${i} days" +"%Y-%m-%d")
+
+            echo "Creation de data/${DATE}.json"
+
+
+            jq \
+              --arg DATE "$DATE" \
+              '{
+                get: .get,
+                parameters: .parameters,
+                errors: .errors,
+                results: (
+                  .response
+                  | map(
+                      select(
+                        (.fixture.date // "")[0:10] == $DATE
+                      )
+                    )
+                )
+              }' \
+              data/all-matches.json \
+              > "data/${DATE}.json"
+
+          done
+
+
+          echo "Creation de today.json..."
+
+
+          cp \
+            "data/${TODAY}.json" \
+            "data/today.json"
+
+
+          TOMORROW=$(date -d "+1 day" +"%Y-%m-%d")
+
+
+          echo "Creation de tomorrow.json..."
+
+
+          cp \
+            "data/${TOMORROW}.json" \
+            "data/tomorrow.json"
+
+
+          echo "Nombre total de matchs :"
+
+
+          jq '.response | length' data/all-matches.json
+
+
+          echo "Fichiers disponibles :"
+
+          ls -lh data/
+
 
       - name: Enregistrer les donnees
         run: |
+
           git config user.name "github-actions[bot]"
+
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/today.json data/tomorrow.json
 
-          git diff --cached --quiet || git commit -m "Update football matches"
+          git add data/
 
-          git push
+
+          if git diff --cached --quiet; then
+
+            echo "Aucune nouvelle donnee a enregistrer."
+
+          else
+
+            git commit -m "Update football matches"
+
+            git push
+
+          fi
