@@ -166,6 +166,7 @@
   </div>
 
   <script>
+    (async () => {
 
     let matches = {
   today: [],
@@ -173,8 +174,12 @@
 };
 
 
-/
-  CHARGER LES MATCHS DEPUIS let matches = {};
+/*
+  /*
+    CHARGER LES MATCHS DEPUIS LES FICHIERS JSON
+*/
+    
+  */
 let selectedDate = new Date();
   const container = document.getElementById("matches");
 
@@ -568,6 +573,8 @@ function analyzeMatch(index, day) {
 */
 
 loadMatches();
+
+      })();
 
   </script>
 
